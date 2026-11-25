@@ -262,6 +262,39 @@
     );
   }
 
+  // The board at a glance: four aggregate figures computed from the rows, so the reader
+  // sees the board's scale before the table. Total TVL and total implied value say how big
+  // the radar's universe is; the median age says how long these protocols have run with no
+  // token; the top ten's share says whether the value is concentrated in a few names or
+  // spread across the board. All four are recomputed from DATA, never typed in.
+  function statsRow() {
+    var rows = DATA.rows;
+    var totalTvl = rows.reduce(function (s, r) { return s + r.tvl_usd; }, 0);
+    var totalImplied = rows.reduce(function (s, r) { return s + r.implied_value_usd; }, 0);
+    var ages = rows.map(function (r) { return r.age_days; }).filter(function (a) { return a !== null; }).sort(function (a, b) { return a - b; });
+    var medianAge = ages.length ? ages[Math.floor(ages.length / 2)] : null;
+    var topTenImplied = rows.slice(0, 10).reduce(function (s, r) { return s + r.implied_value_usd; }, 0);
+    var topTenShare = totalImplied ? Math.round((topTenImplied / totalImplied) * 100) : 0;
+    return el('section', { class: 'panel stats', 'aria-label': 'Board at a glance' },
+      el('div', { class: 'stat' },
+        el('span', { class: 'sub', text: 'Combined TVL on the board' }),
+        el('b', { class: 'num', text: fmtUsd(totalTvl) })
+      ),
+      el('div', { class: 'stat' },
+        el('span', { class: 'sub', text: 'Combined implied value' }),
+        el('b', { class: 'num', text: fmtUsd(totalImplied) })
+      ),
+      el('div', { class: 'stat' },
+        el('span', { class: 'sub', text: 'Median age with no token' }),
+        el('b', { class: 'num', text: medianAge === null ? 'n/a' : fmtAge(medianAge) })
+      ),
+      el('div', { class: 'stat' },
+        el('span', { class: 'sub', text: 'Top 10 share of implied value' }),
+        el('b', { class: 'num', text: topTenShare + '%' })
+      )
+    );
+  }
+
   function controls() {
     var categories = Array.from(new Set(DATA.rows.map(function (r) { return r.category || 'Other'; }))).sort();
     var chains = Array.from(new Set(DATA.rows.reduce(function (acc, r) { return acc.concat(r.chains || []); }, []))).sort();
@@ -545,6 +578,7 @@
     var shell = el('div', { class: 'shell' });
     shell.appendChild(header());
     shell.appendChild(lede());
+    if (state.tab === 'pre-token') shell.appendChild(statsRow());
     shell.appendChild(controls());
     if (state.tab === 'pre-token') shell.appendChild(moversStrip());
     shell.appendChild(state.tab === 'pre-token' ? boardTable() : liveTable());

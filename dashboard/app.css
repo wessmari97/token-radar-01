@@ -164,3 +164,11 @@ tbody tr:last-child td { border-bottom: 0; }
 .categories { padding: var(--step-4); }
 .categories h2 { font-size: 16px; }
 .categories > .sub { margin-top: var(--step-1); margin-bottom: var(--step-3); }
+
+/* Board at a glance: four aggregate figures in a row under the lede. */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--step-3); padding: var(--step-4); }
+.stat { display: grid; gap: var(--step-1); }
+.stat b { font-size: 18px; }
+@media (max-width: 900px) {
+  .stats { grid-template-columns: repeat(2, 1fr); }
+}
