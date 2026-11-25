@@ -159,3 +159,8 @@ tbody tr:last-child td { border-bottom: 0; }
 @media (max-width: 900px) {
   .mover-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* Value by category: a second table below the board, same bars and type as the board. */
+.categories { padding: var(--step-4); }
+.categories h2 { font-size: 16px; }
+.categories > .sub { margin-top: var(--step-1); margin-bottom: var(--step-3); }

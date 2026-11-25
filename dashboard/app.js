@@ -399,6 +399,63 @@
     );
   }
 
+  // Where the board's value sits, by category: for every category on the board, how many
+  // protocols it holds, their combined TVL, their combined implied value, and the strongest
+  // protocol in it. The table answers "which kind of protocol is this radar mostly about"
+  // without opening a single row, and it is computed from the board, never hand-written.
+  function categoryPanel() {
+    var byCat = {};
+    DATA.rows.forEach(function (r) {
+      var cat = r.category || 'Other';
+      var slot = byCat[cat];
+      if (!slot) slot = byCat[cat] = { count: 0, tvl: 0, implied: 0, top: null };
+      slot.count += 1;
+      slot.tvl += r.tvl_usd;
+      slot.implied += r.implied_value_usd;
+      if (!slot.top || r.implied_value_usd > slot.top.implied_value_usd) slot.top = r;
+    });
+    var cats = Object.keys(byCat).map(function (cat) {
+      var s = byCat[cat];
+      return { cat: cat, count: s.count, tvl: s.tvl, implied: s.implied, top: s.top };
+    });
+    cats.sort(function (a, b) { return b.implied - a.implied; });
+    var maxImplied = cats.length ? cats[0].implied : 1;
+    var tbody = el('tbody');
+    cats.forEach(function (c) {
+      var tr = el('tr', null,
+        el('td', null, el('b', { text: c.cat })),
+        el('td', { class: 'num', text: String(c.count) }),
+        el('td', { class: 'num', text: fmtUsd(c.tvl) }),
+        el('td', null, el('div', { class: 'implied' },
+          el('div', { class: 'bar', 'aria-hidden': 'true' }, el('i', { style: 'width:' + Math.max(3, Math.round((c.implied / maxImplied) * 100)) + '%' })),
+          el('span', { class: 'num', text: fmtUsd(c.implied) })
+        )),
+        el('td', null, el('div', { class: 'name' },
+          el('b', { text: c.top.name }),
+          el('span', { class: 'sub', text: 'rank #' + c.top.rank + ' · ' + fmtUsd(c.top.implied_value_usd) })
+        ))
+      );
+      tbody.appendChild(tr);
+    });
+    return el('section', { class: 'panel categories', 'aria-label': 'Value by category' },
+      el('h2', { text: 'Where the value sits' }),
+      el('p', { class: 'sub', text: 'The board grouped by category. Risk curators and allocators dominate because they hold the most TVL with no token; a category with one huge protocol and nothing else is a concentration, not a theme.' }),
+      el('div', { class: 'table-wrap' },
+        el('table', null,
+          el('caption', { class: 'sub', text: 'Categories on the board, strongest combined implied value first.' }),
+          el('thead', null, el('tr', null,
+            el('th', { scope: 'col', text: 'Category' }),
+            el('th', { scope: 'col', text: 'Protocols' }),
+            el('th', { scope: 'col', text: 'Combined TVL' }),
+            el('th', { scope: 'col', text: 'Combined implied value' }),
+            el('th', { scope: 'col', text: 'Strongest protocol' })
+          )),
+          tbody
+        )
+      )
+    );
+  }
+
   var dialog = el('dialog', { class: 'detail', id: 'detail', 'aria-labelledby': 'detail-title' });
   dialog.addEventListener('close', function () { state.selected = null; writeHash(); });
 
@@ -491,6 +548,7 @@
     shell.appendChild(controls());
     if (state.tab === 'pre-token') shell.appendChild(moversStrip());
     shell.appendChild(state.tab === 'pre-token' ? boardTable() : liveTable());
+    if (state.tab === 'pre-token') shell.appendChild(categoryPanel());
     if (state.tab === 'pre-token') shell.appendChild(modelPanel());
     app.appendChild(shell);
     app.setAttribute('aria-busy', 'false');
