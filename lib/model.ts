@@ -162,6 +162,53 @@ export interface LiveRow {
   change_7d: number | null;
 }
 
+/** One row of the dashboard's Top Movers strip: the fastest-growing pre-token protocols. */
+export interface MoverRow {
+  slug: string;
+  name: string;
+  category: string | null;
+  chains: string[];
+  tvl_usd: number;
+  change_7d: number;
+  age_days: number | null;
+  implied_value_usd: number;
+  board_rank: number | null;
+}
+
+/** How many movers the strip carries, and the TVL floor that keeps a tiny pool's spike out. */
+export const MOVER_ROWS = 10;
+export const MOVER_MIN_TVL_USD = 5_000_000;
+
+/**
+ * The week's fastest growers among the pre-token protocols: ranked by their seven-day TVL change,
+ * with a TVL floor so a $10k pool's 300% jump does not outrank a real protocol's 40% climb. A
+ * mover's board rank is attached when it is on the board, so the strip and the board agree.
+ */
+export function topMovers(snapshot: Snapshot, board: BoardRow[]): MoverRow[] {
+  const rankBySlug = new Map(board.map((r) => [r.slug, r.rank]));
+  const impliedBySlug = new Map(board.map((r) => [r.slug, r.implied_value_usd]));
+  return snapshot.protocols
+    .filter((p) => isRankable(p) && p.change_7d !== null && p.tvl_usd >= MOVER_MIN_TVL_USD)
+    .map((p) => ({
+      p,
+      growth: p.change_7d as number,
+      age: ageDays(snapshot.as_of, p.listed_at),
+    }))
+    .sort((a, b) => b.growth - a.growth || b.p.tvl_usd - a.p.tvl_usd)
+    .slice(0, MOVER_ROWS)
+    .map(({ p, growth, age }) => ({
+      slug: p.slug,
+      name: p.name,
+      category: p.category,
+      chains: p.chains,
+      tvl_usd: p.tvl_usd,
+      change_7d: growth,
+      age_days: age,
+      implied_value_usd: impliedBySlug.get(p.slug) ?? impliedValue(p, snapshot.as_of, MODEL).implied,
+      board_rank: rankBySlug.get(p.slug) ?? null,
+    }));
+}
+
 /** Everything the dashboard needs: the board, the live set, and the model it runs. */
 export interface RadarData {
   as_of: string;
@@ -175,6 +222,7 @@ export interface RadarData {
   live_size: number;
   rows: RadarRow[];
   live: LiveRow[];
+  movers: MoverRow[];
 }
 
 /** Why the snapshot is not one this model can score. */
@@ -524,6 +572,7 @@ export function radarRow(row: BoardRow): RadarRow {
 export function buildRadar(snapshot: Snapshot, model: ModelConstants = MODEL): { board: BoardRow[]; radar: RadarData } {
   const board = buildBoard(snapshot, model);
   const live = liveRows(snapshot);
+  const movers = topMovers(snapshot, board);
   const early = board.filter((r) => !snapshot.watchlist.includes(r.slug)).length;
   const radar: RadarData = {
     as_of: snapshot.as_of,
@@ -537,6 +586,7 @@ export function buildRadar(snapshot: Snapshot, model: ModelConstants = MODEL): {
     live_size: live.length,
     rows: board.map(radarRow),
     live,
+    movers,
   };
   return { board, radar };
 }

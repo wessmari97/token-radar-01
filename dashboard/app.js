@@ -448,12 +448,48 @@
     }
   }
 
+  // The week's fastest growers among the pre-token protocols, from DATA.movers: a strip of
+  // ten cards, each showing the seven-day TVL change, the implied value, and the board rank
+  // when the protocol is on the board. Clicking a card opens the same detail drawer as the
+  // board row, so the strip and the table never disagree.
+  function moversStrip() {
+    var movers = DATA.movers || [];
+    if (movers.length === 0) return null;
+    var cards = movers.map(function (m) {
+      var rank = m.board_rank === null ? 'off the board' : 'board #' + m.board_rank;
+      return el('article', {
+        class: 'mover',
+        tabindex: '0',
+        onclick: function () { if (m.board_rank !== null) openDetail(m.slug); },
+        onkeydown: function (e) { if ((e.key === 'Enter' || e.key === ' ') && m.board_rank !== null) { e.preventDefault(); openDetail(m.slug); } }
+      },
+        el('div', { class: 'mover-top' },
+          el('b', { text: m.name }),
+          el('span', { class: 'num pos', text: '+' + fmtPct(m.change_7d) })
+        ),
+        el('div', { class: 'sub', text: (m.category || 'Other') + ' · ' + fmtUsd(m.tvl_usd) + ' TVL' }),
+        el('div', { class: 'mover-bottom' },
+          el('span', { class: 'num', text: fmtUsd(m.implied_value_usd) }),
+          el('span', { class: 'sub', text: rank })
+        )
+      );
+    });
+    return el('section', { class: 'panel movers', 'aria-label': 'Top movers this week' },
+      el('div', { class: 'movers-head' },
+        el('h2', { text: 'Top movers this week' }),
+        el('p', { class: 'sub', text: 'Pre-token protocols by seven-day TVL growth, over $5m TVL. Growth is momentum, not a promise: a spike can be one deposit.' })
+      ),
+      el('div', { class: 'mover-grid' }, cards)
+    );
+  }
+
   function render() {
     app.textContent = '';
     var shell = el('div', { class: 'shell' });
     shell.appendChild(header());
     shell.appendChild(lede());
     shell.appendChild(controls());
+    if (state.tab === 'pre-token') shell.appendChild(moversStrip());
     shell.appendChild(state.tab === 'pre-token' ? boardTable() : liveTable());
     if (state.tab === 'pre-token') shell.appendChild(modelPanel());
     app.appendChild(shell);
